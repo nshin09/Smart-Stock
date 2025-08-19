@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Analyzer</title>
+
+       <link href="{{url_for('static', filename='styles/style.css')}}" rel = "stylesheet"/>
+</head>
+<body>
+            <h1>Ask the AI</h1>
+    <textarea id="prompt" rows="4" cols="50" placeholder="Ask Anything"></textarea><br><br>
+    <button id="sendBtn">Send</button>
+
+    <div id="reply"></div>
+    <h1>Stock Ticker lookup</h1>
+    <form id="stockForm" form method="POST">
+        <input type="text" name="search" id="search" value="{{ ticker if ticker else '' }}" placeholder="Enter company or ticker"><br><br>
+        <label for="period">Select period:</label>
+        <select name="period" id="period">
+            <option value="1d">1 day</option>
+            <option value="5d">5 days</option>
+            <option value="2wk">2 weeks</option>
+            <option value="1mo">1 Month</option>
+            <option value="6mo">6 Months</option>
+            <option value="1y" selected>1 Year</option>
+            <option value="5y">5 Years</option>
+            <option value="max">Max</option>
+        </select>
+    <br><br>
+        <button type="submit">Search</button>
+        <button type="button" id="addBtn">Add</button>
+    </form>
+
+    {% if price %}
+        <h2>{{company_name}} ({{ticker}}):</h2>
+        <p>${{ price }}</p>
+        <div>{{ graph_JSON | safe }}</div>
+    {% endif %}
+<script>
+
+</script>
+
+    <script>
+        document.getElementById("sendBtn").addEventListener("click", async () => {
+            const prompt = document.getElementById("prompt").value.trim();
+            const replyBox = document.getElementById("reply");
+
+            if (!prompt) {
+                replyBox.innerHTML = "<em>Please type something.</em>";
+                return;
+            }
+
+            replyBox.innerHTML = "<em>Thinking...</em>";
+
+            try {
+                const res = await fetch("/api/question", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ prompt })
+                });
+
+                if (!res.ok) {
+                    throw new Error("Error: " + res.statusText);
+                }
+
+                const data = await res.json();
+                replyBox.innerHTML = data.reply;
+            } catch (err) {
+                replyBox.innerHTML = `<span style="color:red">${err}</span>`;
+            }
+        });
+    </script>
+</body>
+</html>
