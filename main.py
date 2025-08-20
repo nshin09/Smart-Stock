@@ -5,29 +5,46 @@ from flask import Flask, render_template, request, jsonify
 from waitress import serve
 import yfinance as yf
 
-from stock import plot_data, is_stock_valid, fetch_stock_data
+from stock import plot_data, is_ticker_valid, fetch_stock_data
 
 
 load_dotenv()
 app = Flask(__name__)
 client = OpenAI(base_url="https://api.aimlapi.com/v1", api_key= os.getenv("OPENAI_API_KEY"))
 news_api_key = os.getenv("NEWS_API_KEY")
-tickers = []
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == "POST":
-        ticker = request.form.get("search").upper().strip()
+        results = request.form.get("search").split(',')
         period = request.form.get("period", "1y")
-        if ticker: 
-            stock = yf.Ticker(ticker)
-            if is_stock_valid(stock):
-                price = round(stock.history(period="1d")["Close"].iloc[-1], 2)
-                company_name = stock.info['longName']
-                hist = fetch_stock_data(ticker, period)
-                if not hist.empty:
-                    # Creating the plot
-                    graph_JSON = plot_data(ticker, company_name, hist, period)
-                    return render_template("index.html", price = price, company_name = company_name, ticker = ticker, graph_JSON = graph_JSON)
+        data = None
+        tickers = []
+        if results:
+            for i in range(0,len(results)):
+                results[i] = results[i].strip()
+                result = yf.Search(results[i])
+                if result.quotes:
+                    data = result.quotes[0]
+                    if is_ticker_valid(data['symbol']):
+                        tickers.append(data['symbol'])
+           # stock = yf.Ticker(ticker)
+                #price = round(stock.history(period="1d")["Close"].iloc[-1], 2)
+                #company_name = stock.info['longName']
+               # hist = fetch_stock_data(ticker, period)
+        if tickers:
+            prices = []
+            company_names = []
+            for tick in tickers:
+                stock = yf.Ticker(tick)
+                prices.append(str(round(stock.history(period="1d")["Close"].iloc[-1], 2)))
+                company_names.append(stock.info['longName'])
+            price = ", $".join(prices)
+            company_name = ", ".join(company_names)
+            ticker = ", ".join(tickers)                                 
+        # Creating the plot
+            graph_JSON = plot_data(tickers, period)
+            return render_template("index.html", price = price, company_name = company_name, ticker = ticker, graph_JSON = graph_JSON, period = period)
     return render_template("index.html")
 
 

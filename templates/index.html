@@ -18,18 +18,17 @@
         <input type="text" name="search" id="search" value="{{ ticker if ticker else '' }}" placeholder="Enter company or ticker"><br><br>
         <label for="period">Select period:</label>
         <select name="period" id="period">
-            <option value="1d">1 day</option>
-            <option value="5d">5 days</option>
-            <option value="2wk">2 weeks</option>
-            <option value="1mo">1 Month</option>
-            <option value="6mo">6 Months</option>
-            <option value="1y" selected>1 Year</option>
-            <option value="5y">5 Years</option>
-            <option value="max">Max</option>
-        </select>
+            <option value="1d"  {% if period == "1d" %}selected{% endif %}>1 day</option>
+            <option value="5d"  {% if period == "5d" %}selected{% endif %}>5 days</option>
+            <option value="2wk" {% if period == "2wk" %}selected{% endif %}>2 weeks</option>
+            <option value="1mo" {% if period == "1mo" %}selected{% endif %}>1 Month</option>
+            <option value="6mo" {% if period == "6mo" %}selected{% endif %}>6 Months</option>
+            <option value="1y"  {% if period == "1y" %}selected{% endif %}>1 Year</option>
+            <option value="5y"  {% if period == "5y" %}selected{% endif %}>5 Years</option>
+            <option value="max" {% if period == "max" %}selected{% endif %}>Max</option>
+    </select>
     <br><br>
         <button type="submit">Search</button>
-        <button type="button" id="addBtn">Add</button>
     </form>
 
     {% if price %}
