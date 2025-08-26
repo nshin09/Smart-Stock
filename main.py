@@ -5,7 +5,7 @@ from flask import Flask, render_template, request, jsonify
 from waitress import serve
 import yfinance as yf
 
-from stock import plot_data, is_ticker_valid, fetch_stock_data
+from stock import plot_data, fetch_stock_data
 
 
 load_dotenv()
@@ -15,9 +15,14 @@ news_api_key = os.getenv("NEWS_API_KEY")
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    return render_template("index.html")
+
+@app.route('/submit', methods=['GET', 'POST'])
+def submit():
     if request.method == "POST":
-        results = request.form.get("search").split(',')
+        results = request.form.getlist("tickers")
         period = request.form.get("period", "1y")
+        mode = request.form.get("mode")
         data = None
         tickers = []
         if results:
@@ -26,7 +31,7 @@ def index():
                 result = yf.Search(results[i])
                 if result.quotes:
                     data = result.quotes[0]
-                    if is_ticker_valid(data['symbol']):
+                    if not fetch_stock_data(data['symbol'], "1y").empty and data['symbol'] not in tickers:
                         tickers.append(data['symbol'])
            # stock = yf.Ticker(ticker)
                 #price = round(stock.history(period="1d")["Close"].iloc[-1], 2)
@@ -37,19 +42,60 @@ def index():
             company_names = []
             for tick in tickers:
                 stock = yf.Ticker(tick)
-                prices.append(str(round(stock.history(period="1d")["Close"].iloc[-1], 2)))
-                company_names.append(stock.info['longName'])
+                try:
+                    prices.append(str(round(stock.history(period="1d")["Close"].iloc[-1], 2)))
+                except Exception as e:
+                    try:
+                        prices.append(str(round(yf.Ticker(tick).fast_info["last_price"]),2))
+                    except Exception as e:
+                        prices.append("N/A")
+                try:
+                    company_names.append(stock.info['longName'])
+                except Exception as e:
+                    try:
+                        company_names.append(stock.info['shortName'])
+                    except Exception as e:
+                        company_names.append("null")
+                
             price = ", $".join(prices)
             company_name = ", ".join(company_names)
             ticker = ", ".join(tickers)                                 
         # Creating the plot
-            graph_JSON = plot_data(tickers, period)
-            return render_template("index.html", price = price, company_name = company_name, ticker = ticker, graph_JSON = graph_JSON, period = period)
+            graph_JSON = plot_data(tickers, period, mode)
+            return render_template("index.html", price = price, company_name = company_name, ticker = ticker, graph_JSON = graph_JSON, period = period, tickers = results)
     return render_template("index.html")
 
-
 # @app.route('/index', methods=['GET', 'POST'])
+@app.route("/search_tickers", methods=['GET', 'POST'])
+def search_tickers():
+    query = request.args.get("q", "").strip()
+    if not query:
+        return jsonify([])
 
+    try:
+        result = yf.Search(query)  # new yfinance method
+        if not result.quotes:
+            return jsonify([])
+
+        # Extract only symbol + shortname
+        tickers = []
+        for q in result.quotes[:10]:  # top 10 matches
+            try:
+                name = f"{q['longname']}, ({q['symbol']})"
+                if name not in tickers:
+                    tickers.append(f"{q['longname']}, ({q['symbol']})")
+            except Exception as e:
+                try: 
+                    name = f"{q['shortname']}, ({q['symbol']})"
+                    if name not in tickers:
+                        tickers.append(f"{q['shortname']}, ({q['symbol']})")
+                except Exception as e:
+                    continue
+        return jsonify(tickers)
+
+    except Exception as e:
+        print("System error:", e)
+        return jsonify([])
 
 @app.route('/api/question', methods=['GET', 'POST'])
 def get_question():

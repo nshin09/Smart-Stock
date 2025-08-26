@@ -20,24 +20,28 @@ def fetch_stock_data(ticker, period):
         interval = "1mo"
     else:
         raise ValueError("Unsupported period")
-    
-    hist = yf.Ticker(ticker).history(period=period, interval=interval, prepost=True)
-    return hist
+    try:
+        hist = yf.Ticker(ticker).history(period=period, interval=interval, prepost=True)
+        return hist
+    except Exception:
+        return None
 
 
-def plot_data(tickers, period):
+def plot_data(tickers, period, mode):
     fig = go.Figure()
-    # Decide whether to show markers
-    # Choose hover template
-    hover_format = "Date: %{customdata}<br>Price: $%{y:.2f}<extra></extra>"
+    if mode == "percent": 
+        hover_format = "Date: %{customdata}<br>Percent: %{y:.2f}%<extra></extra>"
+    else:
+        hover_format = "Date: %{customdata}<br>Price: $%{y:.2f}<extra></extra>"
 
-    # Ensure index is datetime
-    for ticker in tickers:
-        hist = fetch_stock_data(ticker,period)
+
+    if len(tickers) == 1: # for single tickers we want equal spacing amongst data points, regardless of time intervals. 
+        ticker = tickers[0]
+        
+        hist = fetch_stock_data(tickers[0],period)
         if hist.empty:
-            continue
-               # Create equal-spacing x values
-        if period in "1d":  # intraday
+            return None
+        if period in "1d": 
             tick = hist.index.strftime("%H:%M")
         elif period in "5d":
             tick = hist.index.strftime("%d %H:%M")
@@ -50,71 +54,106 @@ def plot_data(tickers, period):
             dates = hist.index.strftime("%Y-%m-%d %H:%M") 
         else:  # formatted dates for labels
             dates = hist.index.strftime("%Y-%m-%d") 
-
         if not hist.index.dtype.kind in 'M':
             hist.index = pd.to_datetime(hist.index)
         x_equal = list(range(len(hist)))
         name = yf.Ticker(ticker).info.get("longName", ticker)
-        num_points = len(hist)
-        mode = "lines+markers" if num_points <= 100 else "lines"
-
+        values = None
+        if mode == "percent":
+            # get the percentage values 
+            values = (hist["Close"] / hist["Close"].iloc[0] - 1) * 100
+            y_title = "Change (%)"
+        else:
+            y_title = "Price ($)"
+            values = hist["Close"]
         fig.add_trace(go.Scatter(
         x=x_equal,
-        y=hist["Close"],
-        mode=mode,
+        y=values,
+        mode="lines",
         name= f"{name}, ({ticker.upper()})",
-        customdata=dates,  # real date labels for hover
-        hovertemplate=hover_format
-    ))
+        customdata=dates,  
+        hovertemplate=hover_format ))
 
-    # Plot with equal spacing
-    # fig.add_trace(go.Scatter(
-    #     x=x_equal,
-    #     y=hist["Close"],
-    #     mode=mode,
-    #     name="Closing Price",
-    #     customdata=dates,  # real date labels for hover
-    #     hovertemplate=hover_format
-    # ))
-    # Pick fewer ticks so labels don’t overlap
-    step = max(1, len(x_equal) // 10)  
-    tickvals = x_equal[::step]
-    ticktext = [tick[i] for i in tickvals]
-    title = None
-    if len(tickers) > 1:
-        ticker_list_str = ", ".join(tickers)
-        title = f"{ticker_list_str.upper()} - Last {period}"
-    else:
+        step = max(1, len(x_equal) // 10)  
+        tickvals = x_equal[::step]
+        ticktext = [tick[i] for i in tickvals]
         title = f"{name} ({ticker.upper()}) - Last {period}"
 
-    fig.update_layout(
-        title= title,
-        xaxis_title="Date",
-        yaxis_title="Price ($)",
-        template="plotly_white",
-        xaxis=dict(
-            tickmode="array",
-            tickvals=tickvals,
-            ticktext=ticktext,
-            showspikes=True,
-            spikemode="across"
+        fig.update_layout(
+            width = 1200,
+            height = 600,
+            title= title,
+            xaxis_title="Date",
+            yaxis_title= y_title,
+            template="plotly_white",
+            xaxis=dict(
+                tickmode="array",
+                tickvals=tickvals,
+                ticktext=ticktext,
+                showspikes=True,
+                spikemode="across"
         )
     )
+        return fig.to_html(full_html=False)
+    else: # for multiple tickers we want points that line up perfectly with the time ticks
+        histories = {}
 
-    return fig.to_html(full_html=False)
+
+        for ticker in tickers:
+            hist = fetch_stock_data(ticker, period)
+            if not hist.empty:
+                histories[ticker] = hist
+
+            if not histories:
+                return "<p>No data available</p>"
+            if period in ["1d","5d","2wk", "1mo"]:
+                dates = hist.index.strftime("%Y-%m-%d %H:%M") 
+            else:  
+                dates = hist.index.strftime("%Y-%m-%d") 
+        
+        min_end = min(hist.index.max() for hist in histories.values())
+        max_start = max(hist.index.min() for hist in histories.values())
+
+  
+        for ticker, hist in histories.items():
+            hist = hist.loc[(hist.index >= max_start) & (hist.index <= min_end)]
+            if hist.empty:
+                continue
+
+            name = yf.Ticker(ticker).info.get("longName", ticker)
+            if mode == "percent":
+            
+                values = (hist["Close"] / hist["Close"].iloc[0] - 1) * 100
+                y_title = "Change (%)"
+            else:
+                values = hist["Close"]
+                y_title = "Price ($)"
+            fig.add_trace(go.Scatter(
+                x=hist.index,
+                y=values,
+                mode= "lines",
+                name=f"{name} ({ticker.upper()})",
+                hovertemplate= hover_format,
+                customdata=dates 
+            ))
+        fig.update_layout(
+            width = 1200,
+            height = 600,
+            title=f"{', '.join(tickers)} - Last {period}",
+            xaxis_title="Date",
+            yaxis_title= y_title,
+            template="plotly_white",
+            xaxis=dict(
+                range=[max_start, min_end],  # force common window
+                showspikes=True,
+                spikemode="across",
+                nticks = 10
+                
+            )
+        )
+        return fig.to_html(full_html=False)
+   
+ 
     
 
 
-
-def is_ticker_valid(ticker):
-    try:
-        # Attempt to access a key piece of information.
-        # This will raise an exception if the ticker is invalid.
-        stock = yf.Ticker(ticker)
-        _ = stock.info['symbol']
-        _ = stock.info['longName']
-        return True
-    except Exception:
-        # If an exception occurs, the ticker is not valid.
-        return False
-    

@@ -21,3 +21,65 @@ body {
     padding: 1rem;
     border-radius: 10px;
 }
+
+.search-container{
+    position:relative;
+    width: 200px;
+}
+
+#search{
+  width: 200px;
+  padding: 8px;
+  font-size: 14px;
+
+}
+/* This is for the live search box */
+#results {
+  top: 100%;    /* directly below the input */
+  left: 0;
+  right: 0;
+  /* border: 1px solid #ccc; */
+  max-height: 200px;
+  overflow-y: auto;
+  background: white;
+  position: absolute;
+  width: 200px; 
+  /*margin-top: 2px;*/
+  padding: 0;
+  font-size: 14px;
+  list-style: none;
+  z-index: 1000;
+  color : black;
+}
+#results .result {
+  padding: 8px;
+  cursor: pointer;
+}
+
+#results .result:hover {
+  background: #f0f0f0;
+}
+
+#tickers {
+    /* border: 1px solid #ccc; */
+    max-height: 200px;
+    overflow-y: auto;
+    background: white;
+    position: relative;
+    width: 200px;
+    /*margin-top: 2px;*/
+    padding: 0;
+    font-size: 14px;
+    list-style: none;
+    z-index: 1000;
+    color: black;
+    left: 200px;
+    bottom: 36px;
+}
+
+
+.highlight {
+  background: yellow;
+  font-weight: bold;
+}
+

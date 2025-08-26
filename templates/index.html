@@ -14,8 +14,30 @@
 
     <div id="reply"></div>
     <h1>Stock Ticker lookup</h1>
-    <form id="stockForm" form method="POST">
-        <input type="text" name="search" id="search" value="{{ ticker if ticker else '' }}" placeholder="Enter company or ticker"><br><br>
+    <form id="stockForm" form method="POST" action='/submit'><br><br>
+        <div class = "search-container">
+        <input type="text" name="search" id="search" value="" placeholder="Enter company or ticker">
+        <ul id = "results"></ul>
+         </div>
+
+
+        <ul id="tickers">
+            {% for t in tickers %}
+            <li class="ticker-item">
+                {{ t }}
+            <button type="button" class="remove-btn" data-symbol="{{ t }}">✖</button>
+            <input type="hidden" name="tickers" value="{{ t }}">
+            </li>
+            {% endfor %}
+
+         </ul>
+
+    <label for="mode">Display mode:</label>
+    <select name="mode" id="mode">
+        <option value="dollar" selected>Dollar ($)</option>
+        <option value="percent">Percent (%)</option>
+    </select>
+
         <label for="period">Select period:</label>
         <select name="period" id="period">
             <option value="1d"  {% if period == "1d" %}selected{% endif %}>1 day</option>
@@ -27,8 +49,10 @@
             <option value="5y"  {% if period == "5y" %}selected{% endif %}>5 Years</option>
             <option value="max" {% if period == "max" %}selected{% endif %}>Max</option>
     </select>
+
+   
+    <button type="submit">Search</button>
     <br><br>
-        <button type="submit">Search</button>
     </form>
 
     {% if price %}
@@ -37,7 +61,118 @@
         <div>{{ graph_JSON | safe }}</div>
     {% endif %}
 <script>
+    const searchBox = document.getElementById("search");
+    const results = document.getElementById("results");
+    const tickers = document.getElementById("tickers")
+    let timer;
+    searchBox.addEventListener('input', ()=> {
+        clearTimeout(timer);
+        timer = setTimeout(async() => {
+            const query = searchBox.value.toLowerCase();
+            results.innerHTML = '';
+            if(query){
+                try{
+                const res = await fetch(`/search_tickers?q=${query}`, {method: "GET"}); // Live search code
+                const data = await res.json();
+                data.filter(item => item.toLowerCase().includes(query)).forEach(item =>{
+                    const li = document.createElement('li');
+                    li.className = 'result';
+                    li.innerHTML = item.replace(
+                        new RegExp(query, 'gi'),
+                        match => `<span class="highlight">${match}</span>`
+                    );
+                li.addEventListener('click', () => {
+                    const alreadyExists = Array.from(document.querySelectorAll('input[name="tickers"]')) // To prevent duplicates in the queue
+                    .some(input => input.value === item);
+                    if(alreadyExists) return;
 
+                    searchBox.value = item; 
+                    const tickerLi = document.createElement('li'); // creates the visible list. 
+                    tickerLi.textContent = item;
+                    tickers.appendChild(tickerLi);
+
+                    const removeBtn = document.createElement('button'); // create a remove button next to each ticker. 
+                    removeBtn.textContent = "✖";
+                    removeBtn.style.color = "black";
+                    removeBtn.style.marginLeft = "8px";
+                    removeBtn.style.cursor = "pointer";
+                    tickerLi.appendChild(removeBtn);
+
+                    removeBtn.addEventListener('click', () => {
+                        tickerLi.remove(); // remove from visible list
+
+                        // remove corresponding hidden input
+                        const hiddenInputs = document.querySelectorAll(`input[name="tickers"][value="${item}"]`);
+                        hiddenInputs.forEach(input => input.remove());
+                    });
+
+                    const hiddenInput = document.createElement('input'); // create a hidden form for searching
+                    hiddenInput.type = "hidden";
+                    hiddenInput.name = "tickers"; 
+                    hiddenInput.value = item;
+                    document.querySelector("form").appendChild(hiddenInput)
+
+                    results.innerHTML = ''; // clear the search results.
+                    searchBox.value = "";
+                });
+                results.appendChild(li);
+                });
+                } catch(err)
+                {
+                    console.error("Error fetching suggestions:", err);
+                }
+            }
+            else
+            {
+
+            }
+        },300);
+    });
+</script>
+
+<script>
+    const form = document.getElementById("stockForm");
+
+    form.addEventListener("keydown", async (e) => {
+        if (e.key === "Enter" || e.key === "Return") {
+            e.preventDefault(); // prevent default "submit on Enter" first
+
+            const query = searchBox.value.trim();
+            const firstResult = results.querySelector(".result");
+
+            if (query && firstResult) {
+                firstResult.click();
+            } else if (!query) {
+                form.submit();
+            }
+        }
+    });
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const tickersList = document.getElementById("tickers");
+
+    function attachRemoveHandlers() {
+        tickersList.querySelectorAll(".remove-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const li = btn.closest("li");
+                if (li) {
+                    const tickerValue = li.getAttribute("data-ticker");
+
+                    // remove the hidden input with the same value
+                    const hiddenInput = document.querySelector(`input[name="tickers"][value="${tickerValue}"]`);
+                    if (hiddenInput) hiddenInput.remove();
+
+                    // remove the visible list item
+                    li.remove();
+                }
+            });
+        });
+    }
+
+    attachRemoveHandlers();
+});
 </script>
 
     <script>
