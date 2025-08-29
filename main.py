@@ -19,51 +19,56 @@ def index():
 
 @app.route('/submit', methods=['GET', 'POST'])
 def submit():
-    if request.method == "POST":
-        results = request.form.getlist("tickers")
-        period = request.form.get("period", "1y")
-        mode = request.form.get("mode")
-        data = None
-        tickers = []
-        if results:
-            for i in range(0,len(results)):
-                results[i] = results[i].strip()
-                result = yf.Search(results[i])
-                if result.quotes:
-                    data = result.quotes[0]
-                    if not fetch_stock_data(data['symbol'], "1y").empty and data['symbol'] not in tickers:
-                        tickers.append(data['symbol'])
-           # stock = yf.Ticker(ticker)
-                #price = round(stock.history(period="1d")["Close"].iloc[-1], 2)
-                #company_name = stock.info['longName']
-               # hist = fetch_stock_data(ticker, period)
-        if tickers:
-            prices = []
-            company_names = []
-            for tick in tickers:
-                stock = yf.Ticker(tick)
-                try:
-                    prices.append(str(round(stock.history(period="1d")["Close"].iloc[-1], 2)))
-                except Exception as e:
+    try:
+        if request.method == "POST":
+            results = request.form.getlist("tickers")
+            period = request.form.get("period", "1y")
+            mode = request.form.get("mode")
+            data = None
+            tickers = []
+            if results:
+                for i in range(0,len(results)):
+                    results[i] = results[i].strip()
+                    result = yf.Search(results[i])
+                    if result.quotes:
+                        data = result.quotes[0]
+                        if not fetch_stock_data(data['symbol'], "1y").empty and data['symbol'] not in tickers:
+                            tickers.append(data['symbol'])
+            # stock = yf.Ticker(ticker)
+                    #price = round(stock.history(period="1d")["Close"].iloc[-1], 2)
+                    #company_name = stock.info['longName']
+                # hist = fetch_stock_data(ticker, period)
+            if tickers:
+                prices = []
+                company_names = []
+                for tick in tickers:
+                    stock = yf.Ticker(tick)
                     try:
-                        prices.append(str(round(yf.Ticker(tick).fast_info["last_price"]),2))
+                        prices.append(str(round(stock.history(period="1d")["Close"].iloc[-1], 2)))
                     except Exception as e:
-                        prices.append("N/A")
-                try:
-                    company_names.append(stock.info['longName'])
-                except Exception as e:
+                        try:
+                            prices.append(str(round(stock.history(period="1wk")["Close"].iloc[-1], 2)))
+                        except Exception as e:
+                            prices.append("N/A")
                     try:
-                        company_names.append(stock.info['shortName'])
+                        company_names.append(stock.info['longName'])
                     except Exception as e:
-                        company_names.append("null")
-                
-            price = ", $".join(prices)
-            company_name = ", ".join(company_names)
-            ticker = ", ".join(tickers)                                 
-        # Creating the plot
-            graph_JSON = plot_data(tickers, period, mode)
-            return render_template("index.html", price = price, company_name = company_name, ticker = ticker, graph_JSON = graph_JSON, period = period, tickers = results)
-    return render_template("index.html")
+                        try:
+                            company_names.append(stock.info['shortName'])
+                        except Exception as e:
+                            company_names.append("null")
+                    
+                price = ", $".join(prices)
+                company_name = ", ".join(company_names)
+                ticker = ", ".join(tickers)                                 
+            # Creating the plot
+                graph_JSON = plot_data(tickers, period, mode)
+                return render_template("index.html", price = price, company_name = company_name, ticker = ticker, graph_JSON = graph_JSON, period = period, tickers = results, mode = mode)
+        return render_template("index.html", company_name = "No Results Found")
+    except Exception as e:
+        return render_template("index.html", company_name = f"Error loading search: {e} Please try again later.")
+
+
 
 # @app.route('/index', methods=['GET', 'POST'])
 @app.route("/search_tickers", methods=['GET', 'POST'])

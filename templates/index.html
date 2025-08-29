@@ -34,8 +34,8 @@
 
     <label for="mode">Display mode:</label>
     <select name="mode" id="mode">
-        <option value="dollar" selected>Dollar ($)</option>
-        <option value="percent">Percent (%)</option>
+        <option value="dollar"  {% if mode == "dollar" %}selected{% endif %}>Dollar ($)</option>
+        <option value="percent" {% if mode == "percent" %}selected{% endif %}>Percent (%)</option>
     </select>
 
         <label for="period">Select period:</label>
@@ -55,11 +55,11 @@
     <br><br>
     </form>
 
-    {% if price %}
-        <h2>{{company_name}} ({{ticker}}):</h2>
+        <p>{{company_name}} {% if ticker %} ({{ticker}}): {% endif %}</p>
+     {% if price %}
         <p>${{ price }}</p>
-        <div>{{ graph_JSON | safe }}</div>
     {% endif %}
+        <div>{{ graph_JSON | safe }}</div>
 <script>
     const searchBox = document.getElementById("search");
     const results = document.getElementById("results");
