@@ -9,8 +9,7 @@
 </head>
 <body>
             <h1>Ask the AI</h1>
-    <textarea id="prompt" rows="4" cols="50" placeholder="Ask Anything"></textarea><br><br>
-    <button id="sendBtn">Send</button>
+    <button id="sendBtn">Generate Summary</button>
 
     <div id="reply"></div>
     <h1>Stock Ticker lookup</h1>
@@ -175,23 +174,16 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 </script>
 
-    <script>
+<script>
         document.getElementById("sendBtn").addEventListener("click", async () => {
-            const prompt = document.getElementById("prompt").value.trim();
             const replyBox = document.getElementById("reply");
-
-            if (!prompt) {
-                replyBox.innerHTML = "<em>Please type something.</em>";
-                return;
-            }
-
             replyBox.innerHTML = "<em>Thinking...</em>";
-
+            const form = document.querySelector("form"); 
+            const formData = new FormData(form);
             try {
                 const res = await fetch("/api/question", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ prompt })
+                    body: formData // send tickers + period from HTML
                 });
 
                 if (!res.ok) {
@@ -203,7 +195,7 @@ document.addEventListener("DOMContentLoaded", () => {
             } catch (err) {
                 replyBox.innerHTML = `<span style="color:red">${err}</span>`;
             }
-        });
-    </script>
+    });
+</script>
 </body>
 </html>

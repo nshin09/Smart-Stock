@@ -29,15 +29,9 @@ def fetch_stock_data(ticker, period):
 
 def plot_data(tickers, period, mode):
     fig = go.Figure()
-    if mode == "percent": 
-        hover_format = "Date: %{customdata}<br>Percent: %{y:.2f}%<extra></extra>"
-    else:
-        hover_format = "Date: %{customdata}<br>Price: $%{y:.2f}<extra></extra>"
-
 
     if len(tickers) == 1: # for single tickers we want equal spacing amongst data points, regardless of time intervals. 
         ticker = tickers[0]
-        
         hist = fetch_stock_data(tickers[0],period)
         if hist.empty:
             return None
@@ -63,9 +57,11 @@ def plot_data(tickers, period, mode):
             # get the percentage values 
             values = (hist["Close"] / hist["Close"].iloc[0] - 1) * 100
             y_title = "Change (%)"
+            hover_format = "Date: %{customdata}<br>Percent: %{y:.2f}%<extra></extra>"
         else:
             y_title = "Price ($)"
             values = hist["Close"]
+            hover_format = "Date: %{customdata}<br>Price: $%{y:.2f}<extra></extra>"
         fig.add_trace(go.Scatter(
         x=x_equal,
         y=values,
@@ -104,37 +100,29 @@ def plot_data(tickers, period, mode):
             if not hist.empty:
                 histories[ticker] = hist
 
-            if not histories:
-                return "<p>No data available</p>"
-            if period in ["1d","5d","2wk", "1mo"]:
-                dates = hist.index.strftime("%Y-%m-%d %H:%M") 
-            else:  
-                dates = hist.index.strftime("%Y-%m-%d") 
-        
-        min_end = min(hist.index.max() for hist in histories.values())
-        max_start = max(hist.index.min() for hist in histories.values())
-
+        if not histories:
+            return "<p>No data available</p>"
   
         for ticker, hist in histories.items():
-            hist = hist.loc[(hist.index >= max_start) & (hist.index <= min_end)]
+           # hist = hist.loc[(hist.index >= max_start) & (hist.index <= min_end)]
             if hist.empty:
                 continue
 
             name = yf.Ticker(ticker).info.get("longName", ticker)
             if mode == "percent":
-            
+                hover_format = "Date: %{x|%Y-%m-%d %H:%M}<br>Change: %{y:.2f}%<extra></extra>"
                 values = (hist["Close"] / hist["Close"].iloc[0] - 1) * 100
                 y_title = "Change (%)"
             else:
                 values = hist["Close"]
                 y_title = "Price ($)"
+                hover_format = "Date: %{x|%Y-%m-%d %H:%M}<br>Price: $%{y:.2f}<extra></extra>"
             fig.add_trace(go.Scatter(
                 x=hist.index,
                 y=values,
                 mode= "lines",
                 name=f"{name} ({ticker.upper()})",
-                hovertemplate= hover_format,
-                customdata=dates 
+                hovertemplate= hover_format
             ))
         fig.update_layout(
             width = 1200,
@@ -144,7 +132,6 @@ def plot_data(tickers, period, mode):
             yaxis_title= y_title,
             template="plotly_white",
             xaxis=dict(
-                range=[max_start, min_end],  # force common window
                 showspikes=True,
                 spikemode="across",
                 nticks = 10
